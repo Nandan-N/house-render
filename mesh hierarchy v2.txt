@@ -1,0 +1,288 @@
+hierarchy.jsx 
+
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useThree } from '@react-three/fiber';
+import ReactDOM from 'react-dom/client';
+
+const HierarchyItem = React.forwardRef(({ name, children }, ref) => {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  const handleExpandCollapseClick = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  const handleNameClick = () => {
+    console.log(`Clicked on: ${name}`);
+  };
+
+  return (
+    <div style={{ paddingLeft: '20px', marginTop: '5px' }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <button onClick={handleExpandCollapseClick} style={{ display: 'inline-block' }}>
+          {isCollapsed ? '▶' : '▼'}
+        </button>
+        <button
+          onClick={handleNameClick}
+          style={{
+            display: 'inline-block',
+            marginLeft: '5px',
+            width: '150px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            backgroundColor: 'transparent',
+            border: 'none',
+            textAlign: 'left',
+            cursor: 'pointer',
+            padding: '0',
+            color: 'black',
+          }}
+          title={name} // Show full name on hover
+          ref={ref}
+        >
+          {name}
+        </button>
+      </div>
+      {!isCollapsed && <div>{children}</div>}
+    </div>
+  );
+});
+
+const Hierarchy = () => {
+  const { scene } = useThree();
+  const [hierarchy, setHierarchy] = useState([]);
+  const hierarchyRefs = useRef({});
+
+  useEffect(() => {
+    if (!scene) return;
+
+    const buildHierarchy = (object) => {
+      const ref = React.createRef();
+      hierarchyRefs.current[object.uuid] = ref;
+
+      const children = object.children.map((child) => buildHierarchy(child));
+
+      return (
+        <HierarchyItem key={object.uuid} name={object.name || object.type} ref={ref}>
+          {children}
+        </HierarchyItem>
+      );
+    };
+
+    const onChange = () => {
+      const hierarchyStructure = buildHierarchy(scene);
+      setHierarchy(hierarchyStructure);
+
+      const sidebarContainer = document.getElementById('hierarchy');
+      if (sidebarContainer) {
+        const root = ReactDOM.createRoot(sidebarContainer);
+        root.render(hierarchyStructure);
+      } else {
+        console.log('Sidebar container not found');
+      }
+    };
+
+    scene.addEventListener('change', onChange);
+    onChange();
+
+    return () => {
+      scene.removeEventListener('change', onChange);
+    };
+  }, [scene]);
+
+  useEffect(() => {
+    const handleSearch = (event) => {
+      if (event.key === 'Enter') {
+        const searchTerm = event.target.value.toLowerCase();
+        for (const ref of Object.values(hierarchyRefs.current)) {
+          if (ref.current && ref.current.innerText.toLowerCase().includes(searchTerm)) {
+            ref.current.click();
+            break;
+          }
+        }
+      }
+    };
+
+    const searchbarContainer = document.getElementById('searchbar');
+    if (searchbarContainer) {
+      const searchbar = (
+        <input
+          type="text"
+          placeholder="Search..."
+          onKeyDown={handleSearch}
+          style={{ marginBottom: '10px', width: '100%', padding: '5px' }}
+        />
+      );
+      const root = ReactDOM.createRoot(searchbarContainer);
+      root.render(searchbar);
+    } else {
+      console.log('Searchbar container not found');
+    }
+  }, []);
+
+  return null;
+};
+
+export default Hierarchy;
+
+
+
+
+App.jsx
+
+import React, { useState } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import Scene from './scene';
+import { importModel } from './Import';
+import './App.css';
+
+
+export default function App() {
+  const [importedScenes, setImportedScenes] = useState([]);
+
+  const handleImport = (file) => {
+    importModel(file, (importedScene) => {
+      setImportedScenes(prevScenes => [...prevScenes, importedScene]);
+    });
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      handleImport(file);
+    }
+  };
+  const handlesearch = () => {
+    const searchInput = document.querySelector('input[type="text"]');
+    const search = searchInput.value.trim();
+    console.log("Search value:", search);
+  };
+  
+  return (
+    <div className='scene'>
+      <div className='sidebar' id='sidebar'>
+        <div className='searchbar' id='searchbar'>
+        </div>
+        <div className='hierarchy' id='hierarchy'>
+        </div>
+      </div>
+
+      <div className='viewport'>
+        <input 
+          type="file" 
+          onChange={handleFileChange} 
+          accept=".glb, .gltf"
+        />
+        <Canvas camera={{ position: [2, 2, 2] }}>
+          <ambientLight intensity={0.1} />
+          <directionalLight color="red" position={[0, 0, 5]} />
+          {importedScenes.map((scene, index) => (
+            <Scene key={index} importedScene={scene} />
+          ))}
+          <OrbitControls />
+        </Canvas>
+        <div className='accessbar' id='accessbar'>
+        </div>  
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
+meshselection.jsx 
+
+
+import React, { useState, useEffect, useRef } from 'react';
+import { extend, useThree, useFrame } from '@react-three/fiber';
+import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
+import { Clock } from 'three';
+
+extend({ EffectComposer, RenderPass, OutlinePass });
+
+const MeshSelection = () => {
+  const { scene, camera, gl, size } = useThree();
+  const [composer] = useState(() => new EffectComposer(gl));
+  const [outlinePass] = useState(() => new OutlinePass(size, scene, camera));
+  const [clickedObject, setClickedObject] = useState(null);
+  const hoveredObjectRef = useRef(null);
+  const clock = new Clock();
+
+  useEffect(() => {
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+    composer.addPass(outlinePass);
+  }, [composer, scene, camera]);
+
+  useEffect(() => {
+    outlinePass.visibleEdgeColor.set(clickedObject ? '#ffff00' : '#ff0000');
+    outlinePass.edgeGlow = 2;
+    outlinePass.edgeThickness = 3;
+  }, [outlinePass, clickedObject]);
+
+  useFrame(() => {
+    composer.render();
+  }, 1);
+
+  useFrame(({ raycaster, mouse }) => {
+    if (clock.getElapsedTime() > 0.5) {
+      clock.start();
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+
+      if (intersects.length > 0) {
+        const selected = intersects[0].object;
+        if (selected !== hoveredObjectRef.current) {
+          hoveredObjectRef.current = selected;
+          outlinePass.selectedObjects = clickedObject === selected ? [] : [selected];
+        }
+      } else if (hoveredObjectRef.current) {
+        hoveredObjectRef.current = null;
+        outlinePass.selectedObjects = clickedObject ? [clickedObject] : [];
+      }
+    }
+  });
+
+useEffect(() => {
+    const handleClick = (event) => {
+        if (hoveredObjectRef.current) {
+            setClickedObject(hoveredObjectRef.current);
+            outlinePass.visibleEdgeColor.set('#ffff00');
+            console.log(hoveredObjectRef.current.name);
+            outlinePass.selectedObjects = [hoveredObjectRef.current];
+
+            // Format the content
+            const content = `Selected mesh: ${hoveredObjectRef.current.name}`;
+
+            // Update access bar content
+            const accessBar = document.getElementById('accessbar');
+            if (accessBar) {
+                accessBar.textContent = content;
+            }
+        } else {
+            setClickedObject(null);
+            outlinePass.selectedObjects = [];
+
+            // Clear access bar content if necessary
+            const accessBar = document.getElementById('accessbar');
+            if (accessBar) {
+                accessBar.textContent = '';
+            }
+        }
+    };
+  
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
+
+  return null;
+};
+
+export default MeshSelection;
+
