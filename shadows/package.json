@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "three": "^0.165.0",
+    "three-glow-mesh": "^0.1.2"
+  },
+  "devDependencies": {
+    "vite": "^5.2.12"
+  }
+}

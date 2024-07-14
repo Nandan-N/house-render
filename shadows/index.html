@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Module 07</title>
+    <style>
+        body { margin: 0; }
+        .movable-window {
+            position: absolute;
+            width: 200px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            z-index: 10; 
+        }
+        .window-header {
+            cursor: move;
+            background: #f0f0f0;
+            padding: 10px;
+            font-weight: bolder;
+            border-bottom: 1px solid #ccc;
+        }
+        .window-title {
+            float: left;
+        }
+        .window-content {
+            margin: 5px;
+            padding: 10px;
+            margin-left: 0px;
+            padding-left: 1px;
+        }
+        .selected {
+            background-color: rgb(255, 0, 200);
+            font-weight: bold;
+        }
+        .hierarchy-item {
+            cursor: pointer;
+        }
+        .toggle-button {
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        .collapsed .children {
+            display: none;
+        }
+        #searchContainer {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #groupContainer {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .group-item {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="movableWindow" class="movable-window" style="top: 50px; left: 50px;">
+        <div class="window-header">
+            <span class="window-title">Hierarchy</span>
+        </div>
+        <div class="window-content">
+            <!-- Content goes here -->
+        </div>    
+    </div>    
+
+    <div id="searchContainer" class="movable-window" style="top: 300px; left: 50px;">
+        <div class="window-header">
+            <span class="window-title">Search Bar</span>
+        </div>
+        <input type="text" id="searchInput" placeholder="Search for a mesh..." />
+        <button id="searchButton">Search</button>
+    </div>
+
+    <div id="groupContainer" class="movable-window" style="top: 450px; left: 50px;">
+        <div class="window-header">
+            <span class="window-title">Group Controls</span>
+        </div>
+        <button id="createGroupButton">Create Group</button>
+        <button id="clearGroupsButton">Clear Groups</button>
+        <div id="groupsList">
+            <!-- List of groups will appear here -->
+        </div>
+    </div>
+
+    <script type="module" src="script.jsx"></script>
+</body>
+</html>
+
